@@ -5,10 +5,12 @@
 
 # Game library imports:
 import pygame
+
 # Local imports:
-from spritesheet import SpriteSheet
 from constants import *
 from sensor import Sensor
+from spritesheet import SpriteSheet
+
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, x, y):

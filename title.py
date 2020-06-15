@@ -1,8 +1,9 @@
 import pygame
 
+from constants import *
 from game import GameScene
 from scene import Scene
-from constants import *
+
 
 class TitleScene(Scene):
     def __init__(self, ):

@@ -29,8 +29,15 @@ BROWN = (100, 40, 0)
 
 # Scene colors
 TITLE_BG_COLOR = BLACK
-GAME_BG_COLOR = BLACK
+GAME_BG_COLOR = GREEN
 
 # Screen dimensions
 SCREEN_WIDTH = 640
 SCREEN_HEIGHT = 480
+
+# Collision mask colors
+MASK_BG_COLOR = RED
+MASK_COLOR = BLACK
+
+# Dimensions of tiles in Tiled maps
+TILE_DIMENSIONS = (16, 16)

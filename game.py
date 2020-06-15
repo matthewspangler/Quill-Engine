@@ -3,18 +3,21 @@
 #   contains main game loop,
 #	including events, drawing, and update
 # -------------------------------------------------------------------- #
-pass
+
 # General imports:
 import sys
+
 # Game related imports:
 import pygame
-from pygame.locals import *
-import pytmx
 import pyscroll
+import pytmx
+from pygame.locals import *
+
 # Local imports:
 from constants import *
 from player import Player
 from scene import Scene
+
 
 class GameScene(Scene):
     def __init__(self):
@@ -88,6 +91,7 @@ class GameScene(Scene):
                 elif event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     sys.exit()
+                # Turn on debug mode
                 elif event.key == pygame.K_F10:
                     self.debug_mode = not self.debug_mode
                     print("Debug mode switched")
@@ -108,36 +112,44 @@ class GameScene(Scene):
 
     # game logic/mechanics here. process user input
     def update(self, dt):
-        # TODO: de-spaghettify the collision logic!
-        layer_index = 0
-        for layer in self.lvl1_tmx_data.visible_layers:
-            if isinstance(layer, pytmx.TiledTileLayer):
-                # layer is tile layer
-                pass
-            layer_index += 1
-            if isinstance(layer, pytmx.TiledObjectGroup):
-                # layer is object layer
-                if layer.name == "Collision Layer": # layer is collision layer
-                    # Check for collision with sensors:
-                    # TODO: some of this collision code needs moved to sensor.collide function
-                    # TODO: collision with Rect's can't handle slopes!
-                    for sensor in self.player_one.sensors:
-                        # Check if each object in collision layer has collided with the sensor
-                        collisions = 0
-                        for obj in layer:
-                            solid_tile = pygame.Rect(obj.x, obj.y, obj.width, obj.height)
-                            # Check for collision with sensors:
-                            if sensor.rect.colliderect(solid_tile):
-                                collisions += 1
-                        if collisions >= 1:
-                            sensor.activated = True
-                        else:
-                            sensor.activated = False
 
-        # Check if player is on ground:
+        # Get collision mask layer
+        c_mask_layer = self.lvl1_tmx_data.get_layer_by_name("Collision Mask")
+
+        # Least effort involved getting all tile images.
+        # TODO: If we could only check tiles near player's sensors, that might be faster.
+        for x, y, image in c_mask_layer.tiles():
+            tile = pygame.sprite.Sprite()
+            tile.image = image
+            # Set a reference to the image rect.
+            tile.rect = tile.image.get_rect()
+
+            # Add position of tile to the tile.rect.
+            # X and Y are only the location of the tile in the grid, not the x, y in pixels.
+            tile.rect.x, tile.rect.y = x * TILE_DIMENSIONS[0], y * TILE_DIMENSIONS[1]
+
+            # Pixel array helps us set up the mask
+            pixelArray = pygame.PixelArray(image)
+
+            # Extract red color from collision tiles, making it transparent
+            # In the collision mask, red is the color we want to ignore, the background color.
+            pixelArray = pixelArray.extract(MASK_BG_COLOR)
+
+            # Make surface from the pixel array
+            mask_surface = pixelArray.make_surface()
+            mask_surface.set_colorkey(WHITE)
+            tile.mask = pygame.mask.from_surface(mask_surface)
+            pixelArray.close() # clean up
+
+            if pygame.sprite.collide_mask(tile, self.player_one.s_right_floor):
+                self.player_one.on_ground = True
+                self.player_one.s_right_floor.activated = True
+
+        # Check if player is on ground
         if self.player_one.s_left_floor.activated or self.player_one.s_right_floor.activated:
             self.player_one.on_ground = True
 
+        # TODO: re-enable gravity & reprogram according to sonic physics guide
         # Make player fall (gravity) unless player is on the ground.
         if self.player_one.on_ground:
             self.player_one.y_speed = 0
@@ -152,8 +164,8 @@ class GameScene(Scene):
 
     # Code for what is drawn on screen each frame here
     def draw(self, screen, surface):
-        # Clear screen
-        surface.fill(BLACK)
+        # Clear screen/fill with background color
+        surface.fill(GAME_BG_COLOR)
 
         # Draw sprite / level data group to surface
         self.group.draw(surface)
@@ -164,6 +176,7 @@ class GameScene(Scene):
 
         # Draw/render surface onto screen
         screen.blit(surface, (0, 0))
+
 
     # All this function's code could just be put into the draw() function,
     # but I put it here because I'm tired of scrolling over it.

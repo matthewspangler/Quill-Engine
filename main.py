@@ -8,9 +8,11 @@
 
 # Game library imports:
 import pygame
+
 # Local imports:
 from constants import *
 from title import TitleScene
+
 
 def main():
     # Initialize all imported pygame modules
