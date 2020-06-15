@@ -1,6 +1,6 @@
 Quill Engine v0.0.1
 
-A Sonic platformer engine, built using Pygame, with Tiled level editor integration.
+A Sonic platformer engine, built using Python + Pygame, with Tiled level editor integration.
 
 This project is still in early alpha! I have a lot of restructuring to do, and most of the physics are not yet working.
 
