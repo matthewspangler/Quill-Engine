@@ -18,7 +18,6 @@ from constants import *
 from player import Player
 from scene import Scene
 
-
 class GameScene(Scene):
     def __init__(self):
         Scene.__init__(self)
@@ -38,7 +37,7 @@ class GameScene(Scene):
         self.active_sprite_list = pygame.sprite.Group()
 
         # Create instance of player
-        self.player_one = Player(100, 120)
+        self.player_one = Player(150, 50)
 
         # Add player to list of active sprites, so it gets rendered in draw() function
         self.active_sprite_list.add(self.player_one)
@@ -67,6 +66,8 @@ class GameScene(Scene):
         # Can be switched on with F10 key, for that see events()
         self.debug_mode = False
 
+        self.jump_key_pressed = False
+
     # Events: processing input from user via keyboard, mouse, etc
     def events(self, events, pressed_keys):
         for event in events:
@@ -76,18 +77,13 @@ class GameScene(Scene):
                 sys.exit()
             # Key down events
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_w:
-                    print("Player input: W")
-                elif event.key == pygame.K_a:
-                    print("Player input: A")
-                    if self.player_one.x_speed > -10:  # speed limit
-                        self.player_one.x_speed -= 1
-                elif event.key == pygame.K_s:
-                    print("Player input: S")
-                elif event.key == pygame.K_d:
-                    print("Player input: D")
-                    if self.player_one.x_speed < 10:  # speed limit
-                        self.player_one.x_speed += 1
+                # Player keypress events
+                self.player_one.key_press(event, pressed_keys)
+
+                # Advances player animation to next frame in list
+                if event.key == pygame.K_n:
+                    self.player_one.advance_animation()
+                # Quit game key
                 elif event.key == pygame.K_ESCAPE:
                     pygame.quit()
                     sys.exit()
@@ -95,20 +91,11 @@ class GameScene(Scene):
                 elif event.key == pygame.K_F10:
                     self.debug_mode = not self.debug_mode
                     print("Debug mode switched")
+
             # Key up events
             elif event.type == pygame.KEYUP:
-                if event.key == pygame.K_w:
-                    print("Player released: W")
-                elif event.key == pygame.K_a:
-                    if self.player_one.x_speed < 0:
-                        self.player_one.x_speed += 1
-                    print("Player released: A")
-                elif event.key == pygame.K_s:
-                    print("Player released: S")
-                elif event.key == pygame.K_d:
-                    if self.player_one.x_speed > 0:
-                        self.player_one.x_speed -= 1
-                    print("Player released: D")
+                # Player key release events
+                self.player_one.key_release(event, pressed_keys)
 
     # game logic/mechanics here. process user input
     def update(self, dt):
@@ -141,26 +128,33 @@ class GameScene(Scene):
             tile.mask = pygame.mask.from_surface(mask_surface)
             pixelArray.close() # clean up
 
-            if pygame.sprite.collide_mask(tile, self.player_one.s_right_floor):
-                self.player_one.on_ground = True
+            relative_collision = pygame.sprite.collide_mask(tile, self.player_one.s_right_floor)
+            if relative_collision: # If collision happened
+                # (X, Y) values of where the collision happened on the screen:
+                absolute_collision = (tile.rect.x + relative_collision[0], tile.rect.y + relative_collision[1])
+                sensor_depth = self.player_one.s_right_floor.rect.bottom - absolute_collision[1]
+                self.player_one.y_speed = 0
+                self.player_one.rect.y -= sensor_depth
+                self.player_one.flag_ground = True
                 self.player_one.s_right_floor.activated = True
+                # TODO: if player has horizontal momentum, they go to running state not standing state!
 
-        # Check if player is on ground
-        if self.player_one.s_left_floor.activated or self.player_one.s_right_floor.activated:
-            self.player_one.on_ground = True
+        # Jumping logic http://info.sonicretro.org/SPG:Jumping
+        # TODO: jumping logic
+        if self.player_one._state == JUMPING_STATE:
+            pass
 
-        # TODO: re-enable gravity & reprogram according to sonic physics guide
+        # TODO: make better sensor mechanics later
+        #if self.player_one.s_right_floor.activated:
+        #    self.player_one.flag_ground = False
+
+
         # Make player fall (gravity) unless player is on the ground.
-        if self.player_one.on_ground:
-            self.player_one.y_speed = 0
-        else:
+        if not self.player_one.flag_ground:
             self.player_one.y_speed += self.player_one.gravity
 
-        # Update the player position
-        self.player_one.update()
-
         # Update active sprite group
-        self.active_sprite_list.update()
+        self.active_sprite_list.update(dt)
 
     # Code for what is drawn on screen each frame here
     def draw(self, screen, surface):
@@ -177,23 +171,29 @@ class GameScene(Scene):
         # Draw/render surface onto screen
         screen.blit(surface, (0, 0))
 
-
     # All this function's code could just be put into the draw() function,
     # but I put it here because I'm tired of scrolling over it.
+    # TODO: rewrite debug drawing code so all text in in a list that is displayed within a for loop.
+    # TODO: that way we can add more debug outputs easily by appending them to the list
     def draw_debug(self, screen, surface):
         screen.fill(TITLE_BG_COLOR)
 
         # Make small font
-        debugFont = pygame.font.Font(HUD_FONT, 30)
+        debugFont = pygame.font.Font(HUD_FONT, 20)
 
         # Create instances of text
         debugText = debugFont.render("Debug mode", False, WHITE)
         positionText = debugFont.render("Player X,Y: %s,%s" %
                                         (self.player_one.rect.x, self.player_one.rect.y), False, WHITE)
+        speedText = debugFont.render("XSP, YSP: %s,%s" %
+                                        (self.player_one.x_speed, self.player_one.y_speed), False, WHITE)
+        playerstateText = debugFont.render("State: %s" % self.player_one._state, False, WHITE)
 
         # Render the debug text
         surface.blit(debugText, (5, 5))
         surface.blit(positionText, (20, 35))
+        surface.blit(speedText, (20, 65))
+        surface.blit(playerstateText, (20, 95))
 
         # Render the sensors
         for sensor in self.player_one.sensors:

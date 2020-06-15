@@ -6,6 +6,9 @@
 WINDOW_CAPTION = "Platformer Engine Test"
 DEV_STUDIO = "Name Subject To Change Studios"
 
+# FPS
+FPS = 60
+
 # Asset paths
 TITLE_FONT = 'assets/fonts/pixeldroidBoticRegular.ttf'
 HUD_FONT = 'assets/fonts/alagard_by_pix3m-d6awiwp.ttf'
@@ -13,6 +16,24 @@ CHARACTER_SHEET = 'assets/sprites/sonicmania.png'
 LEVEL_01_TMX = 'assets/levels/ghz1.tmx'
 LEVEL_01_TSX = 'assets/levels/ghz.tsx'
 LEVEL_01_TILESET = 'assets/tilesets/cavestory-sand.png'
+
+# Player states
+STOPPED_STATE = "stopped"
+WALKING_STATE = "walking"
+RUNNING_STATE = "running"
+JUMPING_STATE = "jumping"
+ROLLING_STATE = "rolling"
+DASHING_STATE = "dashing"
+
+# Sonic spritesheets & animations
+WALK_FRAMES_COUNT = 12 # there are 12 walk right sonic frames
+WALK_START_POS = (1, 142) # x and y of right walking sprites on the sprite sheet
+STAND_FRAMES_COUNT = 1
+STAND_START_POS = (1, 13)
+
+FRAME_SPACING = 1 # each sprite canvas is seperated by 1 pixel
+FRAME_WIDTH = 48 # each sonic sprite is 48 pixels wide, by 48 pixels high
+FRAME_HEIGHT = 48
 
 # Colors
 BLACK = (0, 0, 0)

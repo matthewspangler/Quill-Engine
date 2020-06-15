@@ -19,7 +19,7 @@ def main():
     pygame.init()
 
     # Set up FPS
-    fps = 60
+    fps = FPS
     fpsClock = pygame.time.Clock()
 
     # Set screen/window resolution
