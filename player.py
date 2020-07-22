@@ -1,44 +1,51 @@
-# -------------------------------------------------------------------- #
+#-------------------------------------------------------------------- #
 # player.py
 #   Player class
 # -------------------------------------------------------------------- #
 
-# Game library imports:
 import pygame
-
-# Local imports:
+from math import sin, cos
 from constants import *
 from sensor import Sensor
 from spritesheet import SpriteSheet
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, x, y):
+    def __init__(self, x, y, game):
         # Call the parent's constructor
         super().__init__()
 
-        # TODO: allow these to be defined by passing arguments when class instance is created
+        self.game = game
 
         # Physics constants:
         self.air = 0.09375
         self.jump_speed = 6.5
+        # TODO: set top_speed in accordance with sonic physics guide
         self.top_speed = 6
         self.gravity = 0.21875
         self.acceleration = 0.5
+        self.deaccelerate = 0.5
         self.friction = 0.5
+        # TODO : check if we need the next two:
+        self.roll = 1.03125
+        self.slope = 0.125
 
-        # Variables:
-        # air speed
+        # Movement can be rotated using angle and gangle:
+        self.angle = 0.0
+        self.gangle = 0.0
+        self.rangle = 0.0
+
+        # http://info.sonicretro.org/SPG:Solid_Tiles#The_Three_Speed_Variables
+        # 3 Speed Variables:
         self.x_speed = 0
         self.y_speed = 0
-        # ground speed
         self.ground_speed = 0
-        # states
+
+        # Player's states
         self._state = STOPPED_STATE
 
         # Flags
         self.flag_ground = False
         self.flag_allow_jump = False
-        self.flag_allow_horizontal_movement = True
         self.flag_allow_vertical_movement = True
         self.flag_jump_next_frame = False
         self.flag_fell_off_wall_or_ceiling = False
@@ -57,25 +64,37 @@ class Player(pygame.sprite.Sprite):
 
         # Animation lists
         self.walk_frames = []
-        self.jump_frames = []
         self.stand_frames = []
+        self.dash_frames = []
+        self.run_frames = []
+        self.jump_frames = []
 
-        # Append all right walking frames
+        # Append walking frames
         for x in range(WALK_FRAMES_COUNT):
-            image = player_sprites.get_image(x * FRAME_WIDTH + x * FRAME_SPACING,
-                                             WALK_START_POS[1], FRAME_WIDTH, FRAME_HEIGHT)
+            image = player_sprites.get_image(
+                x * FRAME_WIDTH + x * FRAME_SPACING,
+                WALK_START_POS[1], FRAME_WIDTH, FRAME_HEIGHT)
             self.walk_frames.append(image)
 
+        # Append standing / stopped frames
         for x in range(STAND_FRAMES_COUNT):
-            image = player_sprites.get_image(x * FRAME_WIDTH + x * FRAME_SPACING,
-                                             STAND_START_POS[1], FRAME_WIDTH, FRAME_HEIGHT)
+            image = player_sprites.get_image(
+                x * FRAME_WIDTH + x * FRAME_SPACING,
+                STAND_START_POS[1], FRAME_WIDTH, FRAME_HEIGHT)
             self.stand_frames.append(image)
+
+        # TODO: remove these three lines once we get dash & jump frames implimented
+        self.dash_frames = self.walk_frames
+        self.jump_frames = self.walk_frames
+        self.run_frames = self.walk_frames
 
         # A dictionary of the various animations that correspond to Sonic's various states.
         self.animations = {
             WALKING_STATE: self.walk_frames,
             JUMPING_STATE: self.jump_frames,
-            STOPPED_STATE: self.stand_frames
+            STOPPED_STATE: self.stand_frames,
+            RUNNING_STATE: self.run_frames,
+            DASHING_STATE: self.dash_frames
         }
 
         # A variable containing Sonic's current, active state:
@@ -95,26 +114,29 @@ class Player(pygame.sprite.Sprite):
 
         # Sensors (for collision physics)
         # see http://info.sonicretro.org/SPG:Solid_Tiles#Sensor_Process
-        self.s_center = Sensor(self.rect, [25, 29], 1, 1, WHITE)
-        self.s_left_wall = Sensor(self.rect, [25-8, 29], 8, 1, PINK)
-        self.s_right_wall = Sensor(self.rect, [25+1, 29], 8, 1, RED)
-        self.s_left_floor = Sensor(self.rect, [25-7, 29+1], 1, 19, GREEN)
-        self.s_right_floor = Sensor(self.rect, [25+7, 29+1], 1, 19, PURPLE)
+
+        # TODO: double sensor positions for accuracy!
+        # TODO: make ceiling sensors!
+        self.s_left_wall = Sensor(self.rect, [25, 29],
+                                  SENSOR_LEFT_WALL, PINK)
+        self.s_right_wall = Sensor(self.rect, [34, 29],
+                                   SENSOR_RIGHT_WALL, RED)
+        self.s_left_floor = Sensor(self.rect, [18, 30],
+                                   SENSOR_LEFT_FLOOR, GREEN)
+        self.s_right_floor = Sensor(self.rect, [32, 30],
+                                    SENSOR_RIGHT_FLOOR, PURPLE)
         self.sensors = [
-            self.s_center,
             self.s_left_wall,
             self.s_right_wall,
             self.s_left_floor,
             self.s_right_floor
         ]
 
-        # Control lock timers
-        self.hlock = 0
-
     # Change sonic to a different state and reset the animation for the new state
     def change_state(self, state):
-        self._state = state
-        self.frame_index = 0
+        if self._state != state:
+            self._state = state
+            self.frame_index = 0
 
     # Advance to the next frame in sonic's animation sequence
     def advance_animation(self):
@@ -125,57 +147,42 @@ class Player(pygame.sprite.Sprite):
         # Otherwise, advance to the next frame in the animation sequence!
             self.frame_index = 0
 
-    def set_hlock(self, frames):
-        self.hlock = frames
-        self.flag_allow_horizontal_movement = False
+    def handle_physics(self, dt):
+        self.advance_animation()
 
-    def update_lock_timers(self, dt):
-        if self.hlock > 0:
-            # TODO: might need to change use of FPS constant once I program in variable FPS.
-            self.hlock = max(self.hlock - 60 * dt, 0)
-        if self.hlock == 0:
-            self.flag_allow_horizontal_movement = True
+    def perform_gravity_movement(self, dt):
+        self.y_speed += self.gravity / dt
 
-    def handle_physics(self):
-        # flags are turned on each step (60 steps per second)
-        if self.flag_allow_horizontal_movement:
-            self.advance_animation()
-            # Right movement
-            if self.key_right:
-                if self.flag_ground:
-                    self.ground_speed += self.acceleration
-                # Limit ground_speed by top_speed
-                if self.ground_speed > self.top_speed:
-                    self.ground_speed = self.top_speed
-            # Left movement
-            elif self.key_left:
-                if self.flag_ground:
-                    self.ground_speed -= self.acceleration
-                # Limit ground_speed by negative top_speed
-                if self.ground_speed < - self.top_speed:
-                    self.ground_speed = - self.top_speed
-
-            elif not self.key_left and not self.key_right and self.flag_ground:
-                if self.ground_speed > 0:
-                    self.ground_speed -= self.friction
-                elif self.ground_speed < 0:
-                    self.ground_speed += self.friction
-
+    # States are used to change the animations
     def calculate_state(self):
         if self.flag_ground:
+            # stopped
             if self.ground_speed == 0:
                 self.change_state(STOPPED_STATE)
-            elif self.ground_speed > 0 or self.ground_speed < 0:
+            # walk right
+            elif self.ground_speed > 0 and self.ground_speed < 6:
                 self.change_state(WALKING_STATE)
-            elif self.ground_speed > 6 or self.ground_speed < -6:
+            # walk left
+            elif self.ground_speed < 0 and self.ground_speed > -6:
+                self.change_state(WALKING_STATE)
+            # run right
+            elif self.ground_speed > 6 and self.ground_speed < 10:
                 self.change_state(RUNNING_STATE)
-            elif self.ground_speed > 10 or self.ground_speed < -10:
+            # run left
+            elif self.ground_speed < -6 and self.ground_speed > -10:
+                self.change_state(RUNNING_STATE)
+            # dash right
+            elif self.ground_speed > 10:
                 self.change_state(DASHING_STATE)
+            #dash left
+            elif self.ground_speed < -10:
+                self.change_state(DASHING_STATE)
+            else:
+                print("if you got here, this logic chain is broken")
 
-    # TODO: set_gravity()
-    def set_gravity(self):
-        pass
+        print("finish")
 
+    # Handle key press events for player
     def key_press(self, event, pressed_keys):
         if event.key == pygame.K_a:
             print("Player input: A")
@@ -184,6 +191,7 @@ class Player(pygame.sprite.Sprite):
             print("Player input: D")
             self.key_right = True
 
+    # Handle key release events for player    
     def key_release(self, event, pressed_keys):
         if event.key == pygame.K_a:
             print("Player input: A")
@@ -192,23 +200,30 @@ class Player(pygame.sprite.Sprite):
             print("Player input: D")
             self.key_right = False
 
+    def perform_ground_test(self):
+        pass
+
+    def perform_speed_movement(self, dt):
+        print(dt)
+        self.rect.y += self.y_speed * dt
+
+    # This function is called every frame
     def update(self, dt):
-        # Timing of animations, physics, etc.
-        self.update_lock_timers(dt)
+        # Prevents jumping when not on ground
+        if self.flag_ground:
+            if not self.key_jump:
+                self.flag_allow_jump = True
 
-        # Physics
-        self.handle_physics()
+        # Physics function
+        self.handle_physics(dt)
 
-        # TODO: why are gsp and xsp different variables? How do we integrate them into self.rect.x?
-        self.rect.x += self.ground_speed
-        self.rect.y += self.y_speed
+        # Move player
+        self.perform_speed_movement(dt)
 
-        # Set image to current frame in animation sequence
-        self.image = self.animations.get(self._state)[self.frame_index]
+        # Gravity - if player not on the ground!
+        if not self.flag_ground: # or not self.perform_ground_test():
+            self.perform_gravity_movement(dt)
 
-        # Update the sensors to player's new position
-        for sensor in self.sensors:
-            sensor.update(self.rect)
-
-        # Set player state
+        # Set the state each update so the right animations display
         self.calculate_state()
+

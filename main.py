@@ -1,6 +1,7 @@
 # -------------------------------------------------------------------- #
 # Quill Engine - A Platformer Game Engine
 # By Matthew Spangler
+# With physics help from Sonic Retro, OpenSurge, and Porcupyne Engine
 # -------------------------------------------------------------------- #
 # main.py
 #   main function, create instance of Title Screen scene, game loop.
@@ -13,13 +14,11 @@ import pygame
 from constants import *
 from title import TitleScene
 
-
 def main():
     # Initialize all imported pygame modules
     pygame.init()
 
-    # Set up FPS
-    fps = FPS
+    # Set up clock
     fpsClock = pygame.time.Clock()
 
     # Set screen/window resolution
@@ -30,13 +29,13 @@ def main():
 
     # Set up title scene
     active_scene = starting_scene
-    
+
     active_surface = pygame.Surface([640, 480])
 
     # Game loop.
     while True:
         # Frames per second command
-        dt = fpsClock.tick(fps)
+        dt = fpsClock.tick(FPS) # convert to seconds
 
         # Change scene if previous scene ended
         active_scene = active_scene.next

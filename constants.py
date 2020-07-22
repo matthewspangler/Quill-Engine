@@ -8,6 +8,8 @@ DEV_STUDIO = "Name Subject To Change Studios"
 
 # FPS
 FPS = 60
+GAMESPEED = 1 / FPS
+SCALE = 60
 
 # Asset paths
 TITLE_FONT = 'assets/fonts/pixeldroidBoticRegular.ttf'
@@ -24,6 +26,12 @@ RUNNING_STATE = "running"
 JUMPING_STATE = "jumping"
 ROLLING_STATE = "rolling"
 DASHING_STATE = "dashing"
+
+# Sensor states
+SENSOR_RIGHT_FLOOR = "right floor"
+SENSOR_LEFT_FLOOR = "left floor"
+SENSOR_RIGHT_WALL = "right wall"
+SENSOR_LEFT_WALL = "left wall"
 
 # Sonic spritesheets & animations
 WALK_FRAMES_COUNT = 12 # there are 12 walk right sonic frames

@@ -17,6 +17,7 @@ from pygame.locals import *
 from constants import *
 from player import Player
 from scene import Scene
+from solid_platform import Platform
 
 class GameScene(Scene):
     def __init__(self):
@@ -37,7 +38,7 @@ class GameScene(Scene):
         self.active_sprite_list = pygame.sprite.Group()
 
         # Create instance of player
-        self.player_one = Player(150, 50)
+        self.player_one = Player(150, 50, self)
 
         # Add player to list of active sprites, so it gets rendered in draw() function
         self.active_sprite_list.add(self.player_one)
@@ -67,6 +68,16 @@ class GameScene(Scene):
         self.debug_mode = False
 
         self.jump_key_pressed = False
+
+        self.platforms = self.get_solid_platforms(self.lvl1_tmx_data.get_layer_by_name("Collision Mask"))
+
+    def get_solid_platforms(self, tmx_layer):
+        solid_platforms = []
+        # Least effort involved getting all tile images.
+        # TODO: If we could only check tiles near player's sensors, that might be faster.
+        for x, y, image in tmx_layer.tiles():
+            solid_platforms.append(Platform(x, y, image))
+        return solid_platforms
 
     # Events: processing input from user via keyboard, mouse, etc
     def events(self, events, pressed_keys):
@@ -99,59 +110,6 @@ class GameScene(Scene):
 
     # game logic/mechanics here. process user input
     def update(self, dt):
-
-        # Get collision mask layer
-        c_mask_layer = self.lvl1_tmx_data.get_layer_by_name("Collision Mask")
-
-        # Least effort involved getting all tile images.
-        # TODO: If we could only check tiles near player's sensors, that might be faster.
-        for x, y, image in c_mask_layer.tiles():
-            tile = pygame.sprite.Sprite()
-            tile.image = image
-            # Set a reference to the image rect.
-            tile.rect = tile.image.get_rect()
-
-            # Add position of tile to the tile.rect.
-            # X and Y are only the location of the tile in the grid, not the x, y in pixels.
-            tile.rect.x, tile.rect.y = x * TILE_DIMENSIONS[0], y * TILE_DIMENSIONS[1]
-
-            # Pixel array helps us set up the mask
-            pixelArray = pygame.PixelArray(image)
-
-            # Extract red color from collision tiles, making it transparent
-            # In the collision mask, red is the color we want to ignore, the background color.
-            pixelArray = pixelArray.extract(MASK_BG_COLOR)
-
-            # Make surface from the pixel array
-            mask_surface = pixelArray.make_surface()
-            mask_surface.set_colorkey(WHITE)
-            tile.mask = pygame.mask.from_surface(mask_surface)
-            pixelArray.close() # clean up
-
-            relative_collision = pygame.sprite.collide_mask(tile, self.player_one.s_right_floor)
-            if relative_collision: # If collision happened
-                # (X, Y) values of where the collision happened on the screen:
-                absolute_collision = (tile.rect.x + relative_collision[0], tile.rect.y + relative_collision[1])
-                sensor_depth = self.player_one.s_right_floor.rect.bottom - absolute_collision[1]
-                self.player_one.y_speed = 0
-                self.player_one.rect.y -= sensor_depth
-                self.player_one.flag_ground = True
-                self.player_one.s_right_floor.activated = True
-                # TODO: if player has horizontal momentum, they go to running state not standing state!
-
-        # Jumping logic http://info.sonicretro.org/SPG:Jumping
-        # TODO: jumping logic
-        if self.player_one._state == JUMPING_STATE:
-            pass
-
-        # TODO: make better sensor mechanics later
-        #if self.player_one.s_right_floor.activated:
-        #    self.player_one.flag_ground = False
-
-
-        # Make player fall (gravity) unless player is on the ground.
-        if not self.player_one.flag_ground:
-            self.player_one.y_speed += self.player_one.gravity
 
         # Update active sprite group
         self.active_sprite_list.update(dt)
